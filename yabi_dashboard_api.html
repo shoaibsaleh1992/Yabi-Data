@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Yabi — Internal Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --yabi-orange: #FF6B35;
+  --yabi-orange-dim: rgba(255,107,53,0.15);
+  --bg-0: #0E0E0F;
+  --bg-1: #161618;
+  --bg-2: #1E1E21;
+  --bg-3: #26262A;
+  --text-0: #F2F0EB;
+  --text-1: #A09D97;
+  --text-2: #635F5A;
+  --border: rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.12);
+  --green: #22C88A;
+  --green-dim: rgba(34,200,138,0.12);
+  --red: #F05252;
+  --red-dim: rgba(240,82,82,0.12);
+  --blue: #4D9EFF;
+  --blue-dim: rgba(77,158,255,0.12);
+  --amber: #F5A623;
+  --amber-dim: rgba(245,166,35,0.12);
+  --font: 'Syne', sans-serif;
+  --mono: 'DM Mono', monospace;
+}
+
+body { font-family: var(--font); background: var(--bg-0); color: var(--text-0); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+.layout { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 220px; flex-shrink: 0; background: var(--bg-1);
+  border-right: 0.5px solid var(--border);
+  display: flex; flex-direction: column;
+  position: fixed; top: 0; left: 0; height: 100vh; z-index: 20;
+}
+.logo { padding: 22px 20px 18px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.logo-mark { width: 32px; height: 32px; border-radius: 8px; background: var(--yabi-orange); display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: #fff; }
+.logo-text { font-size: 18px; font-weight: 700; }
+.logo-sub { font-size: 10px; color: var(--text-2); font-family: var(--mono); margin-top: 1px; }
+
+.nav-section { padding: 16px 12px 8px; }
+.nav-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); padding: 0 8px; margin-bottom: 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 9px 10px;
+  border-radius: 8px; font-size: 13px; font-weight: 500; color: var(--text-1);
+  cursor: pointer; transition: all 0.15s; margin-bottom: 2px;
+  border: none; background: none; width: 100%; text-align: left; font-family: var(--font);
+}
+.nav-item:hover { background: var(--bg-3); color: var(--text-0); }
+.nav-item.active { background: var(--yabi-orange-dim); color: var(--yabi-orange); }
+
+.sidebar-footer { margin-top: auto; padding: 16px 20px; border-top: 0.5px solid var(--border); font-size: 11px; color: var(--text-2); font-family: var(--mono); }
+.live-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--green); margin-right: 6px; animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+/* MAIN */
+.main { margin-left: 220px; flex: 1; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 28px; border-bottom: 0.5px solid var(--border);
+  background: var(--bg-1); position: sticky; top: 0; z-index: 10;
+}
+.page-title { font-size: 16px; font-weight: 600; }
+.page-sub { font-size: 12px; color: var(--text-2); font-family: var(--mono); margin-top: 2px; }
+
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+
+.period-toggle { display: flex; gap: 2px; background: var(--bg-2); border-radius: 8px; padding: 3px; }
+.period-btn { padding: 5px 12px; border-radius: 6px; font-size: 12px; font-family: var(--font); font-weight: 500; border: none; background: none; color: var(--text-1); cursor: pointer; transition: all 0.15s; }
+.period-btn.active { background: var(--bg-3); color: var(--text-0); }
+
+/* API STATUS BADGE */
+.api-status {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 6px; font-size: 11px;
+  font-family: var(--mono); border: 0.5px solid var(--border);
+  background: var(--bg-2); cursor: pointer; transition: all 0.15s;
+}
+.api-status:hover { border-color: var(--border-strong); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* PANELS */
+.panel { display: none; padding: 24px 28px; }
+.panel.active { display: block; }
+
+/* LOADING SKELETON */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-2) 25%, var(--bg-3) 50%, var(--bg-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+.skel-card { height: 100px; }
+.skel-chart { height: 240px; }
+
+/* ERROR STATE */
+.error-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 40px; text-align: center; color: var(--text-2);
+}
+.error-state .err-icon { font-size: 28px; margin-bottom: 10px; }
+.error-state p { font-size: 13px; margin-bottom: 14px; line-height: 1.6; }
+.retry-btn {
+  padding: 7px 16px; border-radius: 7px; font-size: 12px; font-family: var(--font);
+  font-weight: 500; border: 0.5px solid var(--border-strong);
+  background: var(--bg-3); color: var(--text-0); cursor: pointer;
+}
+.retry-btn:hover { background: var(--bg-2); }
+
+/* METRIC CARDS */
+.cards-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 20px; }
+@media(max-width:900px){ .cards-row{grid-template-columns:repeat(2,1fr);} }
+
+.mcard { background: var(--bg-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 18px 20px; transition: border-color 0.2s; }
+.mcard:hover { border-color: var(--border-strong); }
+.mcard-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.mcard-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-2); }
+.mcard-icon { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.mcard-value { font-size: 26px; font-weight: 700; font-family: var(--mono); letter-spacing: -0.02em; line-height: 1; margin-bottom: 8px; }
+.mcard-delta { font-size: 12px; display: flex; align-items: center; gap: 5px; }
+.delta-up { color: var(--green); }
+.delta-down { color: var(--red); }
+.delta-label { color: var(--text-2); font-size: 11px; }
+
+/* CHART CARDS */
+.chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.chart-grid-3 { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media(max-width:800px){ .chart-grid,.chart-grid-3{grid-template-columns:1fr;} }
+
+.ccard { background: var(--bg-2); border: 0.5px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+.ccard-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+.ccard-title { font-size: 13px; font-weight: 600; }
+.ccard-sub { font-size: 11px; color: var(--text-2); margin-top: 3px; font-family: var(--mono); }
+.ccard-badge { font-size: 11px; font-family: var(--mono); padding: 3px 8px; border-radius: 5px; font-weight: 500; }
+
+.legend-row { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 14px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-1); }
+.ldot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 5px; font-size: 11px; font-weight: 500; font-family: var(--mono); }
+.pill-green { background: var(--green-dim); color: var(--green); }
+.pill-red { background: var(--red-dim); color: var(--red); }
+.pill-amber { background: var(--amber-dim); color: var(--amber); }
+.pill-blue { background: var(--blue-dim); color: var(--blue); }
+.pill-orange { background: var(--yabi-orange-dim); color: var(--yabi-orange); }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.data-table th { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); padding: 8px 12px; border-bottom: 0.5px solid var(--border); text-align: left; }
+.data-table td { padding: 11px 12px; border-bottom: 0.5px solid var(--border); color: var(--text-1); }
+.data-table tr:last-child td { border-bottom: none; }
+.data-table tr:hover td { color: var(--text-0); }
+.data-table td:first-child { color: var(--text-0); font-weight: 500; }
+.data-table td.mono { font-family: var(--mono); }
+
+.prog-bar { height: 4px; background: var(--bg-3); border-radius: 2px; overflow: hidden; margin-top: 4px; }
+.prog-fill { height: 100%; border-radius: 2px; }
+
+/* API DOCS MODAL */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7); z-index: 100;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: var(--bg-1); border: 0.5px solid var(--border-strong);
+  border-radius: 16px; width: 90%; max-width: 780px;
+  max-height: 85vh; overflow-y: auto; padding: 28px;
+}
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.modal-title { font-size: 16px; font-weight: 600; }
+.modal-close { background: none; border: none; color: var(--text-2); font-size: 20px; cursor: pointer; line-height: 1; }
+.modal-close:hover { color: var(--text-0); }
+
+.api-endpoint {
+  background: var(--bg-0); border: 0.5px solid var(--border);
+  border-radius: 10px; padding: 16px; margin-bottom: 14px;
+}
+.endpoint-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.method { font-family: var(--mono); font-size: 11px; font-weight: 500; padding: 3px 8px; border-radius: 4px; background: var(--green-dim); color: var(--green); }
+.endpoint-url { font-family: var(--mono); font-size: 12px; color: var(--blue); }
+.endpoint-desc { font-size: 12px; color: var(--text-1); margin-bottom: 10px; }
+.code-block {
+  background: var(--bg-2); border-radius: 8px; padding: 14px;
+  font-family: var(--mono); font-size: 11px; color: var(--text-1);
+  overflow-x: auto; white-space: pre; line-height: 1.7;
+}
+.code-key { color: var(--blue); }
+.code-val { color: var(--green); }
+.code-str { color: var(--amber); }
+.code-comment { color: var(--text-2); }
+
+.section-head { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-2); margin: 20px 0 10px; }
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark">Y</div>
+    <div>
+      <div class="logo-text">Yabi</div>
+      <div class="logo-sub">Internal ops</div>
+    </div>
+  </div>
+  <div class="nav-section">
+    <div class="nav-label">Analytics</div>
+    <button class="nav-item active" onclick="switchTab('overview',this)"><span>◈</span> Overview</button>
+    <button class="nav-item" onclick="switchTab('users',this)"><span>◉</span> User Growth</button>
+    <button class="nav-item" onclick="switchTab('budget',this)"><span>◧</span> Budget & Spending</button>
+    <button class="nav-item" onclick="switchTab('revenue',this)"><span>◈</span> Revenue</button>
+    <button class="nav-item" onclick="switchTab('content',this)"><span>▣</span> Content</button>
+  </div>
+  <div class="sidebar-footer">
+    <span class="live-dot"></span><span id="last-updated">Fetching data…</span><br>
+    <span style="margin-top:4px;display:block" id="period-label">— · AED</span>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="page-title" id="page-title">Overview</div>
+      <div class="page-sub" id="page-sub">All metrics · AED</div>
+    </div>
+    <div class="topbar-right">
+      <div class="period-toggle">
+        <button class="period-btn active" onclick="setPeriod('MTD',this)">MTD</button>
+        <button class="period-btn" onclick="setPeriod('QTD',this)">QTD</button>
+        <button class="period-btn" onclick="setPeriod('YTD',this)">YTD</button>
+      </div>
+      <div class="api-status" onclick="openDocs()" id="api-status-badge">
+        <div class="status-dot" id="status-dot" style="background:var(--amber)"></div>
+        <span id="status-text">Connecting…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERVIEW -->
+  <div class="panel active" id="tab-overview">
+    <div class="cards-row" id="overview-cards">
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+    </div>
+    <div class="chart-grid-3">
+      <div class="ccard skeleton skel-chart"></div>
+      <div class="ccard skeleton skel-chart"></div>
+    </div>
+    <div class="chart-grid">
+      <div class="ccard skeleton skel-chart"></div>
+      <div class="ccard skeleton skel-chart"></div>
+    </div>
+  </div>
+
+  <!-- USER GROWTH -->
+  <div class="panel" id="tab-users">
+    <div class="cards-row" id="users-cards">
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+    </div>
+    <div class="ccard skeleton skel-chart"></div>
+    <div class="chart-grid">
+      <div class="ccard skeleton skel-chart"></div>
+      <div class="ccard skeleton skel-chart"></div>
+    </div>
+  </div>
+
+  <!-- BUDGET -->
+  <div class="panel" id="tab-budget">
+    <div class="cards-row" id="budget-cards">
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+    </div>
+    <div class="chart-grid-3">
+      <div class="ccard skeleton skel-chart"></div>
+      <div class="ccard skeleton skel-chart"></div>
+    </div>
+    <div class="ccard skeleton skel-chart"></div>
+  </div>
+
+  <!-- REVENUE -->
+  <div class="panel" id="tab-revenue">
+    <div class="cards-row" id="revenue-cards">
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+    </div>
+    <div class="ccard skeleton skel-chart"></div>
+    <div class="chart-grid">
+      <div class="ccard skeleton skel-chart"></div>
+      <div class="ccard skeleton skel-chart"></div>
+    </div>
+  </div>
+
+  <!-- CONTENT -->
+  <div class="panel" id="tab-content">
+    <div class="cards-row" id="content-cards">
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+      <div class="mcard skeleton skel-card"></div>
+    </div>
+    <div class="chart-grid">
+      <div class="ccard skeleton skel-chart"></div>
+      <div class="ccard skeleton skel-chart"></div>
+    </div>
+    <div class="ccard skeleton" style="height:280px"></div>
+  </div>
+</main>
+</div>
+
+<!-- API DOCS MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">API Integration Guide</div>
+      <button class="modal-close" onclick="closeDocs()">×</button>
+    </div>
+
+    <p style="font-size:13px;color:var(--text-1);line-height:1.7;margin-bottom:16px">
+      The dashboard fetches data from 5 endpoints. Your backend team needs to implement these routes and return JSON matching the shapes below. Set <code style="font-family:var(--mono);color:var(--blue)">API_BASE</code> at the top of the script to your server URL.
+    </p>
+
+    <div class="section-head">Base configuration</div>
+    <div class="code-block"><span class="code-comment">// Line ~300 in this file — change to your API server</span>
+<span class="code-key">const</span> API_BASE = <span class="code-str">"https://api.yabimoney.com/internal"</span>;
+<span class="code-key">const</span> API_KEY  = <span class="code-str">"YOUR_INTERNAL_API_KEY"</span>; <span class="code-comment">// add to request headers</span></div>
+
+    <div class="section-head">Endpoints</div>
+
+    <div class="api-endpoint">
+      <div class="endpoint-row"><span class="method">GET</span><span class="endpoint-url">/metrics/overview?period=MTD</span></div>
+      <div class="endpoint-desc">Top-level KPIs. <code style="font-family:var(--mono)">period</code> is one of <code style="font-family:var(--mono)">MTD | QTD | YTD</code>.</div>
+      <div class="code-block">{
+  <span class="code-key">"totalUsers"</span>:    <span class="code-val">84210</span>,
+  <span class="code-key">"totalUsersDelta"</span>: <span class="code-val">12.4</span>,   <span class="code-comment">// % change vs previous period</span>
+  <span class="code-key">"mrr"</span>:            <span class="code-val">142000</span>,  <span class="code-comment">// AED</span>
+  <span class="code-key">"mrrDelta"</span>:        <span class="code-val">8.1</span>,
+  <span class="code-key">"contentViews"</span>:   <span class="code-val">1200000</span>,
+  <span class="code-key">"contentViewsDelta"</span>: <span class="code-val">31.0</span>,
+  <span class="code-key">"avgBudgetSize"</span>:  <span class="code-val">18400</span>,   <span class="code-comment">// AED</span>
+  <span class="code-key">"avgBudgetDelta"</span>:  <span class="code-val">5.2</span>,
+  <span class="code-key">"months"</span>: [<span class="code-str">"Apr"</span>, <span class="code-str">"May"</span>, <span class="code-str">"..."</span>, <span class="code-str">"Mar"</span>],  <span class="code-comment">// 12 labels</span>
+  <span class="code-key">"newUsersMonthly"</span>: [<span class="code-val">4200</span>, <span class="code-val">4800</span>, <span class="code-str">"..."</span>],   <span class="code-comment">// 12 values</span>
+  <span class="code-key">"cumulativeUsers"</span>: [<span class="code-val">18000</span>, <span class="code-val">22800</span>, <span class="code-str">"..."</span>],
+  <span class="code-key">"revenueSplit"</span>: { <span class="code-key">"premium"</span>: <span class="code-val">78</span>, <span class="code-key">"content"</span>: <span class="code-val">14</span>, <span class="code-key">"partnerships"</span>: <span class="code-val">8</span> },
+  <span class="code-key">"spendCategories"</span>: [
+    { <span class="code-key">"label"</span>: <span class="code-str">"Housing"</span>, <span class="code-key">"pct"</span>: <span class="code-val">38</span> },
+    { <span class="code-key">"label"</span>: <span class="code-str">"Food"</span>,    <span class="code-key">"pct"</span>: <span class="code-val">21</span> }  <span class="code-comment">// etc.</span>
+  ],
+  <span class="code-key">"contentTypeSplit"</span>: { <span class="code-key">"videos"</span>: <span class="code-val">54</span>, <span class="code-key">"articles"</span>: <span class="code-val">28</span>, <span class="code-key">"calculators"</span>: <span class="code-val">18</span> }
+}</div>
+    </div>
+
+    <div class="api-endpoint">
+      <div class="endpoint-row"><span class="method">GET</span><span class="endpoint-url">/metrics/users?period=MTD</span></div>
+      <div class="endpoint-desc">User growth, retention, and acquisition channel breakdown.</div>
+      <div class="code-block">{
+  <span class="code-key">"mau"</span>: <span class="code-val">61340</span>,  <span class="code-key">"mauDelta"</span>: <span class="code-val">9.3</span>,
+  <span class="code-key">"dauMauRatio"</span>: <span class="code-val">38</span>,  <span class="code-key">"dauMauDelta"</span>: <span class="code-val">2.1</span>,
+  <span class="code-key">"retention30d"</span>: <span class="code-val">67</span>, <span class="code-key">"retentionDelta"</span>: <span class="code-val">3</span>,
+  <span class="code-key">"months"</span>: [<span class="code-str">"Apr"</span>, <span class="code-str">"..."</span>, <span class="code-str">"Mar"</span>],
+  <span class="code-key">"newUsersMonthly"</span>: [<span class="code-val">4200</span>, <span class="code-str">"..."</span>],
+  <span class="code-key">"cumulativeUsers"</span>: [<span class="code-val">18000</span>, <span class="code-str">"..."</span>],
+  <span class="code-key">"cohorts"</span>: [
+    { <span class="code-key">"label"</span>: <span class="code-str">"Mar cohort"</span>, <span class="code-key">"data"</span>: [<span class="code-val">100</span>,<span class="code-val">74</span>,<span class="code-val">62</span>,<span class="code-val">56</span>,<span class="code-val">49</span>,<span class="code-val">44</span>,<span class="code-val">38</span>] },
+    { <span class="code-key">"label"</span>: <span class="code-str">"Feb cohort"</span>, <span class="code-key">"data"</span>: [<span class="code-val">100</span>,<span class="code-val">71</span>,<span class="code-val">59</span>,<span class="code-val">53</span>,<span class="code-val">46</span>,<span class="code-val">41</span>,<span class="code-val">35</span>] }
+  ],
+  <span class="code-key">"channels"</span>: [
+    { <span class="code-key">"label"</span>: <span class="code-str">"Organic"</span>,    <span class="code-key">"pct"</span>: <span class="code-val">34</span> },
+    { <span class="code-key">"label"</span>: <span class="code-str">"Social"</span>,     <span class="code-key">"pct"</span>: <span class="code-val">28</span> }
+  ]
+}</div>
+    </div>
+
+    <div class="api-endpoint">
+      <div class="endpoint-row"><span class="method">GET</span><span class="endpoint-url">/metrics/budget?period=MTD</span></div>
+      <div class="endpoint-desc">Aggregated budget and spending data across all app users.</div>
+      <div class="code-block">{
+  <span class="code-key">"activeBudgets"</span>: <span class="code-val">41820</span>, <span class="code-key">"activeBudgetsDelta"</span>: <span class="code-val">7.8</span>,
+  <span class="code-key">"avgBudgetSize"</span>: <span class="code-val">18400</span>, <span class="code-key">"avgBudgetDelta"</span>: <span class="code-val">5.2</span>,
+  <span class="code-key">"goalsCreated"</span>: <span class="code-val">28640</span>,   <span class="code-key">"goalsDelta"</span>: <span class="code-val">19.0</span>,
+  <span class="code-key">"avgSavingsRate"</span>: <span class="code-val">14</span>,      <span class="code-key">"savingsRateDelta"</span>: <span class="code-val">1.3</span>,
+  <span class="code-key">"spendCategories"</span>: [
+    { <span class="code-key">"label"</span>: <span class="code-str">"Housing"</span>, <span class="code-key">"pct"</span>: <span class="code-val">38</span> }  <span class="code-comment">// etc.</span>
+  ],
+  <span class="code-key">"topGoals"</span>: [
+    { <span class="code-key">"label"</span>: <span class="code-str">"Travel ✈️"</span>, <span class="code-key">"pct"</span>: <span class="code-val">32</span> }  <span class="code-comment">// etc.</span>
+  ],
+  <span class="code-key">"months"</span>: [<span class="code-str">"Apr"</span>, <span class="code-str">"..."</span>, <span class="code-str">"Mar"</span>],
+  <span class="code-key">"spendTrends"</span>: {
+    <span class="code-key">"housing"</span>:       [<span class="code-val">7200</span>, <span class="code-str">"..."</span>],
+    <span class="code-key">"food"</span>:          [<span class="code-val">3800</span>, <span class="code-str">"..."</span>],
+    <span class="code-key">"transport"</span>:     [<span class="code-val">2100</span>, <span class="code-str">"..."</span>],
+    <span class="code-key">"entertainment"</span>: [<span class="code-val">1800</span>, <span class="code-str">"..."</span>]
+  }
+}</div>
+    </div>
+
+    <div class="api-endpoint">
+      <div class="endpoint-row"><span class="method">GET</span><span class="endpoint-url">/metrics/revenue?period=MTD</span></div>
+      <div class="endpoint-desc">MRR, ARR, subscription funnel, and churn data.</div>
+      <div class="code-block">{
+  <span class="code-key">"mrr"</span>: <span class="code-val">142000</span>,      <span class="code-key">"mrrDelta"</span>: <span class="code-val">8.1</span>,
+  <span class="code-key">"arr"</span>: <span class="code-val">1700000</span>,     <span class="code-key">"arrDelta"</span>: <span class="code-val">8.1</span>,
+  <span class="code-key">"premiumUsers"</span>: <span class="code-val">9840</span>, <span class="code-key">"premiumDelta"</span>: <span class="code-val">14.2</span>,
+  <span class="code-key">"arpu"</span>: <span class="code-val">14.4</span>,         <span class="code-key">"arpuDelta"</span>: <span class="code-val">-1.2</span>,
+  <span class="code-key">"months"</span>: [<span class="code-str">"Apr"</span>, <span class="code-str">"..."</span>, <span class="code-str">"Mar"</span>],
+  <span class="code-key">"mrrStreams"</span>: {
+    <span class="code-key">"premium"</span>:      [<span class="code-val">68</span>, <span class="code-str">"..."</span>],  <span class="code-comment">// AED thousands per month</span>
+    <span class="code-key">"content"</span>:      [<span class="code-val">7</span>,  <span class="code-str">"..."</span>],
+    <span class="code-key">"partnerships"</span>: [<span class="code-val">3</span>,  <span class="code-str">"..."</span>]
+  },
+  <span class="code-key">"funnel"</span>: {
+    <span class="code-key">"registered"</span>: <span class="code-val">84210</span>, <span class="code-key">"activated"</span>: <span class="code-val">61340</span>,
+    <span class="code-key">"trial"</span>: <span class="code-val">18200</span>,     <span class="code-key">"premium"</span>: <span class="code-val">9840</span>
+  },
+  <span class="code-key">"churnMonths"</span>: [<span class="code-str">"Oct"</span>, <span class="code-str">"..."</span>, <span class="code-str">"Mar"</span>],
+  <span class="code-key">"churn"</span>: {
+    <span class="code-key">"newMrr"</span>:    [<span class="code-val">14</span>, <span class="code-str">"..."</span>],
+    <span class="code-key">"expansion"</span>: [<span class="code-val">6</span>,  <span class="code-str">"..."</span>],
+    <span class="code-key">"churned"</span>:   [<span class="code-val">-8</span>, <span class="code-str">"..."</span>]
+  }
+}</div>
+    </div>
+
+    <div class="api-endpoint">
+      <div class="endpoint-row"><span class="method">GET</span><span class="endpoint-url">/metrics/content?period=MTD</span></div>
+      <div class="endpoint-desc">Content views, calculator usage, completion rates, and top performers.</div>
+      <div class="code-block">{
+  <span class="code-key">"totalViews"</span>: <span class="code-val">1200000</span>, <span class="code-key">"viewsDelta"</span>: <span class="code-val">31.0</span>,
+  <span class="code-key">"videoCompletion"</span>: <span class="code-val">68</span>,  <span class="code-key">"completionDelta"</span>: <span class="code-val">4</span>,
+  <span class="code-key">"calcUses"</span>: <span class="code-val">184000</span>,     <span class="code-key">"calcDelta"</span>: <span class="code-val">22.0</span>,
+  <span class="code-key">"avgSession"</span>: <span class="code-val">8.4</span>,       <span class="code-key">"sessionDelta"</span>: <span class="code-val">1.2</span>,
+  <span class="code-key">"months"</span>: [<span class="code-str">"Apr"</span>, <span class="code-str">"..."</span>, <span class="code-str">"Mar"</span>],
+  <span class="code-key">"viewsByType"</span>: {
+    <span class="code-key">"videos"</span>:      [<span class="code-val">280</span>, <span class="code-str">"..."</span>],  <span class="code-comment">// thousands per month</span>
+    <span class="code-key">"articles"</span>:    [<span class="code-val">120</span>, <span class="code-str">"..."</span>],
+    <span class="code-key">"calculators"</span>: [<span class="code-val">60</span>,  <span class="code-str">"..."</span>]
+  },
+  <span class="code-key">"calculators"</span>: [
+    { <span class="code-key">"label"</span>: <span class="code-str">"Loan repayment"</span>, <span class="code-key">"uses"</span>: <span class="code-val">84000</span> }  <span class="code-comment">// etc.</span>
+  ],
+  <span class="code-key">"topContent"</span>: [
+    {
+      <span class="code-key">"title"</span>: <span class="code-str">"Budgeting Basics"</span>, <span class="code-key">"type"</span>: <span class="code-str">"Video"</span>,
+      <span class="code-key">"views"</span>: <span class="code-val">148000</span>, <span class="code-key">"completion"</span>: <span class="code-val">82</span>, <span class="code-key">"rating"</span>: <span class="code-val">4.8</span>
+    }
+  ]
+}</div>
+    </div>
+
+    <div class="section-head">Auth header</div>
+    <div class="code-block"><span class="code-comment">// Add this to every request in the fetchData() function</span>
+headers: {
+  <span class="code-str">"Authorization"</span>: <span class="code-str">`Bearer ${API_KEY}`</span>,
+  <span class="code-str">"Content-Type"</span>: <span class="code-str">"application/json"</span>
+}</div>
+
+    <div style="margin-top:20px;padding:14px;background:var(--yabi-orange-dim);border-radius:8px;border:0.5px solid rgba(255,107,53,0.3)">
+      <div style="font-size:12px;color:var(--yabi-orange);font-weight:600;margin-bottom:6px">While APIs are not yet live</div>
+      <div style="font-size:12px;color:var(--text-1);line-height:1.6">The dashboard runs on realistic sample data. Once your team deploys the endpoints above, change <code style="font-family:var(--mono);color:var(--blue)">USE_MOCK_DATA = false</code> at the top of the script and the dashboard will switch to live data automatically.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────
+   CONFIGURATION — edit these two lines
+   ───────────────────────────────────────── */
+const API_BASE      = "https://api.yabimoney.com/internal";
+const API_KEY       = "YOUR_INTERNAL_API_KEY";
+const USE_MOCK_DATA = true;   // ← flip to false when APIs are live
+const REFRESH_MS    = 5 * 60 * 1000; // auto-refresh every 5 min
+
+/* ─────────────────────────────────────────
+   STATE
+   ───────────────────────────────────────── */
+let currentPeriod = "MTD";
+let currentTab    = "overview";
+let allData       = {};
+let charts        = {};
+
+/* ─────────────────────────────────────────
+   MOCK DATA (mirrors exact API shape)
+   ───────────────────────────────────────── */
+const MOCK = {
+  overview: {
+    totalUsers:84210, totalUsersDelta:12.4,
+    mrr:142000, mrrDelta:8.1,
+    contentViews:1200000, contentViewsDelta:31.0,
+    avgBudgetSize:18400, avgBudgetDelta:5.2,
+    months:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+    newUsersMonthly:[4200,4800,5100,5900,6400,6800,7200,7800,8100,8600,9200,9800],
+    cumulativeUsers:[18000,22800,27900,33800,40200,47000,54200,62000,70100,78700,87900,97700],
+    revenueSplit:{premium:78,content:14,partnerships:8},
+    spendCategories:[{label:'Housing',pct:38},{label:'Food',pct:21},{label:'Transport',pct:12},{label:'Shopping',pct:11},{label:'Entertainment',pct:10},{label:'Health',pct:8}],
+    contentTypeSplit:{videos:54,articles:28,calculators:18}
+  },
+  users: {
+    mau:61340, mauDelta:9.3, dauMauRatio:38, dauMauDelta:2.1, retention30d:67, retentionDelta:3,
+    months:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+    newUsersMonthly:[4200,4800,5100,5900,6400,6800,7200,7800,8100,8600,9200,9800],
+    cumulativeUsers:[18000,22800,27900,33800,40200,47000,54200,62000,70100,78700,87900,97700],
+    cohorts:[
+      {label:'Mar cohort',data:[100,74,62,56,49,44,38]},
+      {label:'Feb cohort',data:[100,71,59,53,46,41,35]},
+      {label:'Jan cohort',data:[100,69,57,50,43,38,32]}
+    ],
+    channels:[{label:'Organic',pct:34},{label:'Social',pct:28},{label:'Referral',pct:18},{label:'Paid',pct:12},{label:'PR',pct:8}]
+  },
+  budget: {
+    activeBudgets:41820, activeBudgetsDelta:7.8,
+    avgBudgetSize:18400, avgBudgetDelta:5.2,
+    goalsCreated:28640, goalsDelta:19.0,
+    avgSavingsRate:14, savingsRateDelta:1.3,
+    spendCategories:[{label:'Housing',pct:38},{label:'Food',pct:21},{label:'Transport',pct:12},{label:'Shopping',pct:11},{label:'Entertainment',pct:10},{label:'Health',pct:5},{label:'Education',pct:3}],
+    topGoals:[{label:'Travel ✈️',pct:32},{label:'Emergency 🛡️',pct:24},{label:'Home 🏠',pct:18},{label:'Car 🚗',pct:14},{label:'Education 📚',pct:12}],
+    months:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+    spendTrends:{
+      housing:[7200,7100,7300,7200,7400,7600,7500,7700,7800,7900,8000,8100],
+      food:[3800,3900,4000,3950,4100,4200,4100,4300,4400,4300,4500,4600],
+      transport:[2100,2200,2150,2300,2200,2400,2300,2500,2400,2600,2500,2700],
+      entertainment:[1800,1900,2000,1950,2100,2200,2100,2300,2200,2400,2300,2500]
+    }
+  },
+  revenue: {
+    mrr:142000, mrrDelta:8.1, arr:1700000, arrDelta:8.1,
+    premiumUsers:9840, premiumDelta:14.2, arpu:14.4, arpuDelta:-1.2,
+    months:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+    mrrStreams:{premium:[68,72,76,80,85,90,95,100,108,116,124,133],content:[7,8,8,9,9,10,10,11,12,12,13,14],partnerships:[3,3,4,4,4,5,5,5,6,6,6,7]},
+    funnel:{registered:84210,activated:61340,trial:18200,premium:9840},
+    churnMonths:['Oct','Nov','Dec','Jan','Feb','Mar'],
+    churn:{newMrr:[14,16,15,18,17,20],expansion:[6,7,7,8,9,9],churned:[-8,-7,-9,-8,-7,-8]}
+  },
+  content: {
+    totalViews:1200000, viewsDelta:31.0,
+    videoCompletion:68, completionDelta:4,
+    calcUses:184000, calcDelta:22.0,
+    avgSession:8.4, sessionDelta:1.2,
+    months:['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'],
+    viewsByType:{videos:[280,310,340,380,420,460,500,560,610,680,740,820],articles:[120,135,148,160,172,185,200,218,235,255,272,296],calculators:[60,70,78,88,98,108,118,130,142,155,168,184]},
+    calculators:[{label:'Loan repayment',uses:84000},{label:'Savings goal',uses:62000},{label:'Budget planner',uses:54000},{label:'Zakat calc',uses:38000},{label:'Retirement',uses:32000},{label:'Currency conv',uses:24000}],
+    topContent:[
+      {title:'Budgeting Basics',type:'Video',views:148000,completion:82,rating:4.8},
+      {title:'Save 20% of salary',type:'Article',views:97000,completion:71,rating:4.7},
+      {title:'Loan Repayment Calc',type:'Calc',views:84000,completion:94,rating:4.9},
+      {title:'Understanding credit scores',type:'Video',views:76000,completion:74,rating:4.6},
+      {title:'Retirement planner',type:'Calc',views:61000,completion:89,rating:4.8}
+    ]
+  }
+};
+
+/* ─────────────────────────────────────────
+   DATA FETCHING
+   ───────────────────────────────────────── */
+async function fetchData(tab) {
+  if (USE_MOCK_DATA) {
+    await new Promise(r => setTimeout(r, 600)); // simulate network
+    return MOCK[tab];
+  }
+  const res = await fetch(`${API_BASE}/metrics/${tab}?period=${currentPeriod}`, {
+    headers: {
+      "Authorization": `Bearer ${API_KEY}`,
+      "Content-Type": "application/json"
+    }
+  });
+  if (!res.ok) throw new Error(`API ${res.status}: ${res.statusText}`);
+  return res.json();
+}
+
+async function loadTab(tab) {
+  try {
+    const data = await fetchData(tab);
+    allData[tab] = data;
+    renderTab(tab, data);
+    setStatus('live');
+  } catch(err) {
+    renderError(tab, err);
+    setStatus('error');
+  }
+}
+
+/* ─────────────────────────────────────────
+   STATUS BADGE
+   ───────────────────────────────────────── */
+function setStatus(state) {
+  const dot  = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  const lu   = document.getElementById('last-updated');
+  const now  = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  if (state === 'live') {
+    dot.style.background = 'var(--green)';
+    text.textContent = USE_MOCK_DATA ? 'Mock data' : 'Live';
+    lu.textContent = `Updated ${now}`;
+  } else if (state === 'error') {
+    dot.style.background = 'var(--red)';
+    text.textContent = 'API error';
+    lu.textContent = `Failed ${now}`;
+  }
+  document.getElementById('period-label').textContent = `${currentPeriod} · AED`;
+}
+
+/* ─────────────────────────────────────────
+   ERROR STATE
+   ───────────────────────────────────────── */
+function renderError(tab, err) {
+  const containers = {
+    overview: ['overview-cards','#tab-overview .chart-grid-3','#tab-overview .chart-grid'],
+    users:    ['users-cards','#tab-users .ccard','#tab-users .chart-grid'],
+    budget:   ['budget-cards','#tab-budget .chart-grid-3','#tab-budget .ccard:last-child'],
+    revenue:  ['revenue-cards','#tab-revenue .ccard','#tab-revenue .chart-grid'],
+    content:  ['content-cards','#tab-content .chart-grid','#tab-content .ccard:last-child']
+  };
+  const panel = document.getElementById(`tab-${tab}`);
+  panel.innerHTML = `<div class="error-state">
+    <div class="err-icon">⚠</div>
+    <p>Could not load data for this section.<br><span style="font-family:var(--mono);font-size:11px;color:var(--text-2)">${err.message}</span></p>
+    <button class="retry-btn" onclick="loadTab('${tab}')">Retry</button>
+  </div>`;
+}
+
+/* ─────────────────────────────────────────
+   CHART HELPERS
+   ───────────────────────────────────────── */
+const gc = id => document.getElementById(id);
+const gridColor = 'rgba(255,255,255,0.05)';
+const tickStyle = { color:'#635F5A', font:{size:11, family:"'DM Mono',monospace"} };
+
+function axes(yCallback, opts={}) {
+  return {
+    x: { grid:{color:gridColor}, ticks:tickStyle, ...opts.x },
+    y: { grid:{color:gridColor}, ticks:{...tickStyle, callback: yCallback || (v=>v)}, ...opts.y }
+  };
+}
+
+function mk(id, type, data, options={}) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+  const el = gc(id);
+  if (!el) return;
+  charts[id] = new Chart(el, {
+    type, data,
+    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, animation:{duration:500}, ...options }
+  });
+}
+
+function fmtK(v) { return v >= 1000 ? (v/1000).toFixed(0)+'K' : v; }
+function deltaClass(d) { return d >= 0 ? 'delta-up' : 'delta-down'; }
+function deltaArrow(d) { return d >= 0 ? '↑' : '↓'; }
+function pillClass(d)  { return d >= 0 ? 'pill-green' : 'pill-red'; }
+
+function metricCard(label, value, delta, deltaLabel, iconBg, iconColor, iconChar) {
+  return `<div class="mcard">
+    <div class="mcard-top">
+      <div class="mcard-label">${label}</div>
+      <div class="mcard-icon" style="background:${iconBg};color:${iconColor}">${iconChar}</div>
+    </div>
+    <div class="mcard-value">${value}</div>
+    <div class="mcard-delta">
+      <span class="${deltaClass(delta)}">${deltaArrow(delta)} ${Math.abs(delta)}%</span>
+      <span class="delta-label">${deltaLabel}</span>
+    </div>
+  </div>`;
+}
+
+/* ─────────────────────────────────────────
+   RENDERERS
+   ───────────────────────────────────────── */
+function renderTab(tab, d) {
+  const renderers = { overview, users, budget, revenue, content };
+  renderers[tab](d);
+}
+
+function overview(d) {
+  document.getElementById('overview-cards').innerHTML =
+    metricCard('Total Users', d.totalUsers.toLocaleString(), d.totalUsersDelta, 'vs last period', 'var(--yabi-orange-dim)', 'var(--yabi-orange)', '◉') +
+    metricCard('MRR', 'AED '+fmtK(d.mrr), d.mrrDelta, 'vs last period', 'var(--green-dim)', 'var(--green)', '◈') +
+    metricCard('Content Views', fmtK(d.contentViews), d.contentViewsDelta, 'vs last period', 'var(--blue-dim)', 'var(--blue)', '▣') +
+    metricCard('Avg Budget', 'AED '+fmtK(d.avgBudgetSize), d.avgBudgetDelta, 'vs last period', 'var(--amber-dim)', 'var(--amber)', '◧');
+
+  document.getElementById('tab-overview').innerHTML = document.getElementById('tab-overview').innerHTML.replace(/class="(mcard|ccard) skeleton[^"]*"/g, '');
+
+  const panel = document.getElementById('tab-overview');
+  panel.innerHTML = `
+    <div class="cards-row" id="overview-cards">
+      ${metricCard('Total Users',d.totalUsers.toLocaleString(),d.totalUsersDelta,'vs last period','var(--yabi-orange-dim)','var(--yabi-orange)','◉')}
+      ${metricCard('MRR','AED '+fmtK(d.mrr),d.mrrDelta,'vs last period','var(--green-dim)','var(--green)','◈')}
+      ${metricCard('Content Views',fmtK(d.contentViews),d.contentViewsDelta,'vs last period','var(--blue-dim)','var(--blue)','▣')}
+      ${metricCard('Avg Budget Size','AED '+fmtK(d.avgBudgetSize),d.avgBudgetDelta,'vs last period','var(--amber-dim)','var(--amber)','◧')}
+    </div>
+    <div class="chart-grid-3">
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">User growth</div><div class="ccard-sub">New registrations per month</div></div><span class="ccard-badge ${pillClass(d.totalUsersDelta)}">${deltaArrow(d.totalUsersDelta)} ${Math.abs(d.totalUsersDelta)}%</span></div>
+        <div class="legend-row"><div class="legend-item"><span class="ldot" style="background:var(--yabi-orange)"></span>New users</div><div class="legend-item"><span class="ldot" style="background:var(--blue)"></span>Cumulative</div></div>
+        <div style="position:relative;height:220px"><canvas id="ov-growth"></canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Revenue split</div><div class="ccard-sub">By stream · AED</div></div></div>
+        <div style="position:relative;height:180px"><canvas id="ov-rev-pie"></canvas></div>
+        <div class="legend-row" style="margin-top:14px;margin-bottom:0">
+          <div class="legend-item"><span class="ldot" style="background:var(--yabi-orange)"></span>Premium</div>
+          <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span>Content</div>
+          <div class="legend-item"><span class="ldot" style="background:var(--green)"></span>Partnerships</div>
+        </div>
+      </div>
+    </div>
+    <div class="chart-grid">
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Top spending categories</div><div class="ccard-sub">Across all user budgets</div></div></div>
+        <div style="position:relative;height:200px"><canvas id="ov-spend"></canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Content type split</div><div class="ccard-sub">Views by type this period</div></div></div>
+        <div style="position:relative;height:200px"><canvas id="ov-content"></canvas></div>
+      </div>
+    </div>`;
+
+  mk('ov-growth','bar',{labels:d.months,datasets:[
+    {data:d.newUsersMonthly,backgroundColor:'rgba(255,107,53,0.75)',borderRadius:3,yAxisID:'y'},
+    {data:d.cumulativeUsers,type:'line',borderColor:'#4D9EFF',pointRadius:0,fill:false,tension:0.4,yAxisID:'y1'}
+  ]},{scales:{...axes(v=>fmtK(v)),y1:{position:'right',grid:{display:false},ticks:{...tickStyle,callback:v=>fmtK(v)}}}});
+
+  mk('ov-rev-pie','doughnut',{
+    labels:['Premium','Content','Partnerships'],
+    datasets:[{data:[d.revenueSplit.premium,d.revenueSplit.content,d.revenueSplit.partnerships],backgroundColor:['#FF6B35','#4D9EFF','#22C88A'],borderWidth:0}]
+  },{cutout:'68%'});
+
+  mk('ov-spend','bar',{
+    labels:d.spendCategories.map(c=>c.label),
+    datasets:[{data:d.spendCategories.map(c=>c.pct),backgroundColor:['#FF6B35','#4D9EFF','#22C88A','#F5A623','#a78bfa','#f472b6'],borderRadius:4}]
+  },{indexAxis:'y',scales:{x:{...axes(v=>v+'%').x},y:{...axes().y}}});
+
+  mk('ov-content','doughnut',{
+    labels:['Videos','Articles','Calculators'],
+    datasets:[{data:[d.contentTypeSplit.videos,d.contentTypeSplit.articles,d.contentTypeSplit.calculators],backgroundColor:['#FF6B35','#4D9EFF','#22C88A'],borderWidth:0}]
+  },{cutout:'65%'});
+}
+
+function users(d) {
+  const cohortColors = ['#FF6B35','#4D9EFF','#22C88A','#F5A623'];
+  document.getElementById('tab-users').innerHTML = `
+    <div class="cards-row" id="users-cards">
+      ${metricCard('MAU',d.mau.toLocaleString(),d.mauDelta,'MoM','var(--yabi-orange-dim)','var(--yabi-orange)','◉')}
+      ${metricCard('DAU / MAU',d.dauMauRatio+'%',d.dauMauDelta,'MoM','var(--blue-dim)','var(--blue)','◉')}
+      ${metricCard('30d Retention',d.retention30d+'%',d.retentionDelta,'MoM','var(--green-dim)','var(--green)','◈')}
+      ${metricCard('Total Registered',d.newUsersMonthly.reduce((a,b)=>a+b,0).toLocaleString(),d.mauDelta,'cumulative','var(--amber-dim)','var(--amber)','◈')}
+    </div>
+    <div class="ccard">
+      <div class="ccard-header"><div><div class="ccard-title">User acquisition over time</div><div class="ccard-sub">New registrations per month</div></div></div>
+      <div class="legend-row"><div class="legend-item"><span class="ldot" style="background:var(--yabi-orange)"></span>New users</div><div class="legend-item"><span class="ldot" style="background:var(--blue)"></span>Cumulative</div></div>
+      <div style="position:relative;height:240px"><canvas id="u-growth"></canvas></div>
+    </div>
+    <div class="chart-grid">
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Retention cohorts</div><div class="ccard-sub">% still active by week</div></div></div>
+        <div style="position:relative;height:210px"><canvas id="u-retention"></canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Acquisition channels</div><div class="ccard-sub">Source breakdown</div></div></div>
+        <div style="position:relative;height:210px"><canvas id="u-channels"></canvas></div>
+      </div>
+    </div>`;
+
+  mk('u-growth','bar',{labels:d.months,datasets:[
+    {data:d.newUsersMonthly,backgroundColor:'rgba(255,107,53,0.75)',borderRadius:3,yAxisID:'y'},
+    {data:d.cumulativeUsers,type:'line',borderColor:'#4D9EFF',pointRadius:2,fill:false,tension:0.4,yAxisID:'y1'}
+  ]},{scales:{...axes(v=>fmtK(v)),y1:{position:'right',grid:{display:false},ticks:{...tickStyle,callback:v=>fmtK(v)}}}});
+
+  mk('u-retention','line',{
+    labels:['W1','W2','W3','W4','W6','W8','W12'],
+    datasets:d.cohorts.map((c,i)=>({label:c.label,data:c.data,borderColor:cohortColors[i],pointRadius:3,fill:false,tension:0.3}))
+  },{plugins:{legend:{display:true,labels:{color:'#A09D97',boxWidth:8,font:{size:11}}}},scales:axes(v=>v+'%')});
+
+  mk('u-channels','doughnut',{
+    labels:d.channels.map(c=>c.label),
+    datasets:[{data:d.channels.map(c=>c.pct),backgroundColor:['#FF6B35','#4D9EFF','#22C88A','#F5A623','#a78bfa'],borderWidth:0}]
+  },{plugins:{legend:{display:true,position:'right',labels:{color:'#A09D97',boxWidth:8,font:{size:11}}}}});
+}
+
+function budget(d) {
+  document.getElementById('tab-budget').innerHTML = `
+    <div class="cards-row" id="budget-cards">
+      ${metricCard('Active Budgets',d.activeBudgets.toLocaleString(),d.activeBudgetsDelta,'MoM','var(--amber-dim)','var(--amber)','◧')}
+      ${metricCard('Avg Budget / User','AED '+fmtK(d.avgBudgetSize),d.avgBudgetDelta,'MoM','var(--yabi-orange-dim)','var(--yabi-orange)','◈')}
+      ${metricCard('Goals Created',d.goalsCreated.toLocaleString(),d.goalsDelta,'MoM','var(--green-dim)','var(--green)','◈')}
+      ${metricCard('Avg Savings Rate',d.avgSavingsRate+'%',d.savingsRateDelta,'MoM','var(--blue-dim)','var(--blue)','◧')}
+    </div>
+    <div class="chart-grid-3">
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Spending categories</div><div class="ccard-sub">Aggregated across all budgets</div></div></div>
+        <div style="position:relative;height:240px"><canvas id="b-cats"></canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Top budget goals</div><div class="ccard-sub">By frequency</div></div></div>
+        <table class="data-table">
+          ${d.topGoals.map(g=>`<tr><td>${g.label}</td><td class="mono" style="text-align:right"><span class="pill pill-orange">${g.pct}%</span></td></tr>`).join('')}
+        </table>
+      </div>
+    </div>
+    <div class="ccard">
+      <div class="ccard-header"><div><div class="ccard-title">Spending trends per category</div><div class="ccard-sub">AED · Platform-wide monthly</div></div></div>
+      <div class="legend-row">
+        <div class="legend-item"><span class="ldot" style="background:var(--yabi-orange)"></span>Housing</div>
+        <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span>Food</div>
+        <div class="legend-item"><span class="ldot" style="background:var(--green)"></span>Transport</div>
+        <div class="legend-item"><span class="ldot" style="background:var(--amber)"></span>Entertainment</div>
+      </div>
+      <div style="position:relative;height:220px"><canvas id="b-trends"></canvas></div>
+    </div>`;
+
+  mk('b-cats','bar',{
+    labels:d.spendCategories.map(c=>c.label),
+    datasets:[{data:d.spendCategories.map(c=>c.pct),backgroundColor:'#FF6B35',borderRadius:4,barThickness:22}]
+  },{indexAxis:'y',scales:{x:{...axes(v=>v+'%').x},y:{...axes().y}}});
+
+  mk('b-trends','line',{
+    labels:d.months,
+    datasets:[
+      {data:d.spendTrends.housing,borderColor:'#FF6B35',pointRadius:0,fill:false,tension:0.4},
+      {data:d.spendTrends.food,borderColor:'#4D9EFF',pointRadius:0,fill:false,tension:0.4},
+      {data:d.spendTrends.transport,borderColor:'#22C88A',pointRadius:0,fill:false,tension:0.4},
+      {data:d.spendTrends.entertainment,borderColor:'#F5A623',pointRadius:0,fill:false,tension:0.4},
+    ]
+  },{scales:axes(v=>fmtK(v)+' AED')});
+}
+
+function revenue(d) {
+  document.getElementById('tab-revenue').innerHTML = `
+    <div class="cards-row" id="revenue-cards">
+      ${metricCard('MRR','AED '+fmtK(d.mrr),d.mrrDelta,'MoM','var(--green-dim)','var(--green)','◈')}
+      ${metricCard('ARR (proj)','AED '+fmtK(d.arr),d.arrDelta,'annualized','var(--green-dim)','var(--green)','◈')}
+      ${metricCard('Premium Users',d.premiumUsers.toLocaleString(),d.premiumDelta,'MoM','var(--yabi-orange-dim)','var(--yabi-orange)','◉')}
+      ${metricCard('ARPU','AED '+d.arpu,d.arpuDelta,'MoM','var(--blue-dim)','var(--blue)','◈')}
+    </div>
+    <div class="ccard">
+      <div class="ccard-header"><div><div class="ccard-title">Monthly Recurring Revenue</div><div class="ccard-sub">AED · by stream</div></div><span class="ccard-badge ${pillClass(d.mrrDelta)}">${deltaArrow(d.mrrDelta)} ${Math.abs(d.mrrDelta)}% MoM</span></div>
+      <div class="legend-row">
+        <div class="legend-item"><span class="ldot" style="background:var(--yabi-orange)"></span>Premium subs</div>
+        <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span>Content licensing</div>
+        <div class="legend-item"><span class="ldot" style="background:var(--green)"></span>Partnerships</div>
+      </div>
+      <div style="position:relative;height:240px"><canvas id="r-mrr"></canvas></div>
+    </div>
+    <div class="chart-grid">
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Subscription funnel</div><div class="ccard-sub">Registered → Premium</div></div></div>
+        <div style="position:relative;height:210px"><canvas id="r-funnel"></canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Churn & expansion</div><div class="ccard-sub">Net MRR movement · AED K</div></div></div>
+        <div style="position:relative;height:210px"><canvas id="r-churn"></canvas></div>
+      </div>
+    </div>`;
+
+  mk('r-mrr','bar',{labels:d.months,datasets:[
+    {label:'Premium',data:d.mrrStreams.premium,backgroundColor:'rgba(255,107,53,0.8)',borderRadius:3},
+    {label:'Content',data:d.mrrStreams.content,backgroundColor:'rgba(77,158,255,0.8)',borderRadius:3},
+    {label:'Partnerships',data:d.mrrStreams.partnerships,backgroundColor:'rgba(34,200,138,0.8)',borderRadius:3},
+  ]},{scales:{...axes(v=>v+'K AED'),x:{...axes().x,stacked:true},y:{...axes(v=>v+'K AED').y,stacked:true}}});
+
+  mk('r-funnel','bar',{
+    labels:['Registered','Activated','Trial','Premium'],
+    datasets:[{data:[d.funnel.registered,d.funnel.activated,d.funnel.trial,d.funnel.premium],backgroundColor:['rgba(255,107,53,0.3)','rgba(255,107,53,0.5)','rgba(255,107,53,0.7)','#FF6B35'],borderRadius:4}]
+  },{indexAxis:'y',scales:{x:{...axes(v=>fmtK(v)).x},y:{...axes().y}}});
+
+  mk('r-churn','bar',{labels:d.churnMonths,datasets:[
+    {label:'New MRR',data:d.churn.newMrr,backgroundColor:'rgba(34,200,138,0.75)',borderRadius:3},
+    {label:'Expansion',data:d.churn.expansion,backgroundColor:'rgba(77,158,255,0.75)',borderRadius:3},
+    {label:'Churned',data:d.churn.churned,backgroundColor:'rgba(240,82,82,0.75)',borderRadius:3},
+  ]},{scales:axes(v=>v+'K')});
+}
+
+function content(d) {
+  const pillMap = {Video:'pill-orange',Article:'pill-blue',Calc:'pill-green'};
+  document.getElementById('tab-content').innerHTML = `
+    <div class="cards-row" id="content-cards">
+      ${metricCard('Total Views',fmtK(d.totalViews),d.viewsDelta,'MoM','var(--blue-dim)','var(--blue)','▣')}
+      ${metricCard('Video Completions',d.videoCompletion+'%',d.completionDelta,'MoM','var(--yabi-orange-dim)','var(--yabi-orange)','▣')}
+      ${metricCard('Calculator Uses',fmtK(d.calcUses),d.calcDelta,'MoM','var(--green-dim)','var(--green)','◈')}
+      ${metricCard('Avg Session',d.avgSession+'min',d.sessionDelta,'MoM','var(--amber-dim)','var(--amber)','◈')}
+    </div>
+    <div class="chart-grid">
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Content views by type</div><div class="ccard-sub">Monthly · thousands</div></div></div>
+        <div class="legend-row">
+          <div class="legend-item"><span class="ldot" style="background:var(--yabi-orange)"></span>Videos</div>
+          <div class="legend-item"><span class="ldot" style="background:var(--blue)"></span>Articles</div>
+          <div class="legend-item"><span class="ldot" style="background:var(--green)"></span>Calculators</div>
+        </div>
+        <div style="position:relative;height:210px"><canvas id="c-types"></canvas></div>
+      </div>
+      <div class="ccard">
+        <div class="ccard-header"><div><div class="ccard-title">Top calculator tools</div><div class="ccard-sub">By usage this period</div></div></div>
+        <div style="position:relative;height:210px"><canvas id="c-calcs"></canvas></div>
+      </div>
+    </div>
+    <div class="ccard">
+      <div class="ccard-header"><div><div class="ccard-title">Top performing content</div><div class="ccard-sub">This period · all types</div></div></div>
+      <table class="data-table">
+        <thead><tr><th>Title</th><th>Type</th><th>Views</th><th>Completion</th><th>Rating</th></tr></thead>
+        <tbody>
+          ${d.topContent.map(c=>`<tr>
+            <td>${c.title}</td>
+            <td><span class="pill ${pillMap[c.type]||'pill-blue'}">${c.type}</span></td>
+            <td class="mono">${fmtK(c.views)}</td>
+            <td><div style="display:flex;align-items:center;gap:8px"><span class="mono">${c.completion}%</span><div class="prog-bar" style="width:80px"><div class="prog-fill" style="width:${c.completion}%;background:${c.completion>80?'var(--green)':c.completion>60?'var(--amber)':'var(--red)'}"></div></div></div></td>
+            <td class="mono">${c.rating} ⭐</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  mk('c-types','bar',{labels:d.months,datasets:[
+    {data:d.viewsByType.videos,backgroundColor:'rgba(255,107,53,0.75)',borderRadius:3},
+    {data:d.viewsByType.articles,backgroundColor:'rgba(77,158,255,0.75)',borderRadius:3},
+    {data:d.viewsByType.calculators,backgroundColor:'rgba(34,200,138,0.75)',borderRadius:3},
+  ]},{scales:{...axes(v=>v+'K'),x:{...axes().x,stacked:true},y:{...axes(v=>v+'K').y,stacked:true}}});
+
+  mk('c-calcs','bar',{
+    labels:d.calculators.map(c=>c.label),
+    datasets:[{data:d.calculators.map(c=>c.uses),backgroundColor:d.calculators.map((_,i)=>`rgba(255,107,53,${1-(i*0.13)})`),borderRadius:4}]
+  },{indexAxis:'y',scales:{x:{...axes(v=>fmtK(v)).x},y:{...axes().y}}});
+}
+
+/* ─────────────────────────────────────────
+   NAV & PERIOD
+   ───────────────────────────────────────── */
+function switchTab(tab, el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  const titles = {overview:'Overview',users:'User Growth',budget:'Budget & Spending',revenue:'Revenue & Monetization',content:'Content Engagement'};
+  document.getElementById('page-title').textContent = titles[tab];
+  currentTab = tab;
+  if (!allData[tab]) loadTab(tab);
+}
+
+function setPeriod(p, el) {
+  document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentPeriod = p;
+  allData = {}; // clear cache so all tabs refetch with new period
+  loadTab(currentTab);
+}
+
+function openDocs()  { document.getElementById('modal').classList.add('open'); }
+function closeDocs() { document.getElementById('modal').classList.remove('open'); }
+document.getElementById('modal').addEventListener('click', e => { if(e.target === e.currentTarget) closeDocs(); });
+
+/* ─────────────────────────────────────────
+   INIT + AUTO-REFRESH
+   ───────────────────────────────────────── */
+loadTab('overview');
+setInterval(() => { allData = {}; loadTab(currentTab); }, REFRESH_MS);
+</script>
+</body>
+</html>
